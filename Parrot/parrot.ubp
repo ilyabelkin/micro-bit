@@ -1,0 +1,182 @@
+module main
+author https://github.com/ilyabelkin
+version 1 0 
+description 'Talking parrot'
+variables data samples 
+
+	spec ' ' 'Listen' 'Listen'
+	spec ' ' 'Speak' 'Speak'
+
+to Listen {
+  comment 'Record sound (about 1 second)'
+  local 'sample count' 20000
+  samples = 0
+  samples = (newList (v 'sample count'))
+  digitalWriteOp 28 true
+  waitMillis 100
+  for i (v 'sample count') {
+    atPut i samples ('[sensors:microphone]')
+    waitMicros 50
+  }
+  digitalWriteOp 28 false
+}
+
+to Speak {
+  comment 'Play recorded sound through speaker 1-5 times'
+  repeat (random 1 5) {
+    '[display:mbDisplay]' 5193039
+    for n samples {
+      analogWriteOp 27 ((5 * n) + 500)
+      waitMicros 70
+    }
+    '[display:mbDisplay]' 5192047
+    waitMillis 100
+  }
+}
+
+script 60 50 {
+comment 'Parrot: adapted from https://wiki.microblocks.fun/community_projects/microbit_record_play'
+}
+
+script 67 132 {
+whenStarted
+'[display:mbDisplay]' 5192047
+forever {
+  '[display:mbUnplot]' 3 2
+  waitMillis (random 500 3000)
+  '[display:mbPlot]' 3 2
+  waitMillis (random 50 200)
+}
+}
+
+script 364 134 {
+to Listen {}
+}
+
+script 71 449 {
+whenButtonPressed 'A'
+comment 'Record sound and play right after'
+Listen
+Speak
+}
+
+script 369 513 {
+to Speak {}
+}
+
+script 73 567 {
+whenButtonPressed 'B'
+Speak
+}
+
+script 71 689 {
+comment 'Graph the sound'
+for n samples {
+  printIt (n / 4)
+}
+}
+
+
+module 'LED Display' Output
+author MicroBlocks
+version 1 0 
+tags pixel matrix led tft 
+description 'Display primitives for the 5x5 LED display on the BBC micro:bit, Calliope mini and M5Atom Matrix. Boards with TFT displays (such as the Citilab ED1 or the M5Stack family) also support this primitives in a simulated "fat pixel" display.'
+
+	spec ' ' '[display:mbDisplay]' 'display _' 'microbitDisplay' 15237440
+	spec ' ' '[display:mbDisplayOff]' 'clear display'
+	spec ' ' '[display:mbPlot]' 'plot x _ y _' 'num num' 3 3
+	spec ' ' '[display:mbUnplot]' 'unplot x _ y _' 'num num' 3 3
+	spec ' ' 'displayCharacter' 'display character _' 'str' 'A'
+
+to displayCharacter s {
+  s = ('[data:join]' '' s)
+  '[display:mbDrawShape]' ('[display:mbShapeForLetter]' (at 1 s))
+}
+
+
+module Microphone Input
+author MicroBlocks
+version 1 2 
+description 'Microphone, loudness, and clap counting support for boards with built in microphones. The microphone block usually reports values between -512 and 511, with zero for silence. However, very loud sounds may exceed that range on some boards. On the micro:bit v2, the microphone must be turned on before use.'
+variables _clapThreshold _loudnessSamples 
+
+	spec 'r' '[sensors:microphone]' 'microphone'
+	spec ' ' 'turnOnMicrophone' 'turnOnMicrophone'
+	spec 'r' 'loudness' 'loudness'
+	spec 'r' 'clapCount' 'clap count'
+	spec ' ' 'setClapThreshold' 'set clap threshold _' 'auto' 200
+	spec 'r' 'guessClapThreshold' 'estimate clap threshold'
+	spec ' ' '_loudnessLoop' '_loudnessLoop'
+
+to '_loudnessLoop' {
+  comment 'Sample microphone at ~2000 samples/sec, keeping the most recent N samples.'
+  turnOnMicrophone
+  waitMillis 20
+  forever {
+    for i (size _loudnessSamples) {
+      atPut i _loudnessSamples ('[sensors:microphone]')
+      waitMicros 500
+    }
+  }
+}
+
+to clapCount {
+  comment 'Count the number of claps in a sequence.'
+  if (_clapThreshold == 0) {
+    _clapThreshold = 150
+  }
+  waitUntil ((loudness) > _clapThreshold)
+  local 'count' 1
+  forever {
+    waitUntil ((loudness) < ((3 * _clapThreshold) / 4))
+    resetTimer
+    repeatUntil ((loudness) > _clapThreshold) {
+      comment 'This loop awaits either the next clap or for a pause, indicating that the claps have ended.'
+      if ((timer) > 700) {
+        comment 'No clap for a while, return the count.'
+        return count
+      }
+    }
+    count += 1
+  }
+}
+
+to guessClapThreshold {
+  comment 'Sample the loudness for three seconds and set
+_clapThreshold to 130% of the maxium.'
+  local 'maxLoudness' 0
+  resetTimer
+  repeatUntil ((timer) > 3000) {
+    maxLoudness = (maximum maxLoudness (loudness))
+  }
+  return ((13 * maxLoudness) / 10)
+}
+
+to loudness {
+  if (_loudnessSamples == 0) {
+    comment 'Initialize _loudnessSamples and start sampling.'
+    _loudnessSamples = (newList 50)
+    sendBroadcast '_loudnessLoop'
+  }
+  local 'low' 10000
+  local 'high' -10000
+  for n _loudnessSamples {
+    low = (minimum low n)
+    high = (maximum high n)
+  }
+  return (high - low)
+}
+
+to setClapThreshold n {
+  _clapThreshold = n
+}
+
+to turnOnMicrophone {
+  if ('micro:bit v2' == (boardType)) {
+    comment 'Turn on the microphone and
+wait for it to settle down.'
+    digitalWriteOp 28 true
+    waitMillis 50
+  }
+}
