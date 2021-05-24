@@ -8,14 +8,14 @@ The hardware is much improved in version 2, and with the built-in speaker, the m
 
 [The Parrot](/Parrot) can blink, listen and record about a second of audio, and then repeat the sound one to five times
 
-[Screen](Parrot\Parrot-screen.png)
+![Screen](/Parrot/Parrot-screen.png)
 
 ### How-to install the Parrot firmware ###
 
 * Open [MicroBlocks](https://microblocks.fun/mbrun) editor
 * Copy MicroBlocks integration firmware to your microbit v2 (choose "update firmware on board") and connect (click the "USB" icon)
-* Load the [parrot.ubp](Parrot\parrot.ubp) and run
+* Load the [parrot.ubp](/Parrot/parrot.ubp) and run
 * Press button A to record and button B to repeat the phrase
 * Be a soul of a (kids') party
 
-![Blocks](Parrot\Parrot-blocks.png)
+![Blocks](/Parrot/Parrot-blocks.png)
